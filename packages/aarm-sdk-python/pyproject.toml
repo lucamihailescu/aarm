@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aarm-sdk"
+version = "1.0.0"
+description = "AARM Python SDK for Agent Runtimes"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "AARM Dev", email = "dev@aarm.platform" }
+]
+dependencies = ["httpx>=0.20.0"]
+
+[project.urls]
+Homepage = "https://github.com/aarm-platform/aarm-sdk-python"

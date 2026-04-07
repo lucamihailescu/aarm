@@ -1,0 +1,63 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x", "darwin-arm64", "darwin", "linux-arm64-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Namespace {
+  name        String   @id
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  applications Application[]
+}
+
+model Application {
+  id            String   @id
+  name          String
+  namespaceName String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  namespace     Namespace @relation(fields: [namespaceName], references: [name], onDelete: Cascade)
+  
+  policies      Policy[]
+  entities      Entity[]
+
+  @@unique([namespaceName, name])
+}
+
+model Policy {
+  id            String   @id @default(uuid())
+  applicationId String
+  name          String
+  content       String
+  
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@unique([applicationId, name])
+}
+
+model Entity {
+  id            String   @id @default(uuid())
+  applicationId String
+  uidType       String
+  uidId         String
+  attrs         String   // Storing JSON string due to broader compatibility
+  parents       String   // Storing JSON string
+  
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@unique([applicationId, uidType, uidId])
+}
+
+model TelemetryEvent {
+  id        String   @id
+  timestamp DateTime @default(now())
+  eventType String
+  details   String   // Store JSON representation of the AML normalized object
+}

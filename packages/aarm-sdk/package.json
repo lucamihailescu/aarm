@@ -1,0 +1,14 @@
+{
+  "name": "@aarm-dev/sdk",
+  "version": "1.0.0",
+  "description": "AARM TypeScript SDK for Agent Runtimes",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
