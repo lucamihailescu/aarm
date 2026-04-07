@@ -145,8 +145,11 @@
       </a>
     </nav>
     
-    <div class="p-6 border-t border-slate-800 flex items-center text-sm text-slate-400">
-       <div class="w-2 h-2 rounded-full bg-emerald-500 mr-2 status-dot"></div> System Active & Online
+    <div class="p-6 border-t border-slate-800 flex flex-col gap-1.5">
+       <div class="flex items-center text-sm text-slate-400">
+          <div class="w-2 h-2 rounded-full bg-emerald-500 mr-2 status-dot"></div> System Active & Online
+       </div>
+       <span id="sys-version" class="self-start px-2 py-0.5 bg-slate-800/50 text-slate-500 rounded text-[10px] font-mono border border-slate-700/50 hidden"></span>
     </div>
   </aside>
 
@@ -168,18 +171,18 @@
       <section id="view-dashboard" class="view active">
         <!-- KPI Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="glass-panel group hover:bg-slate-800/80 transition-colors">
+          <a href="#telemetry" class="glass-panel group hover:bg-slate-800/80 transition-colors cursor-pointer">
             <span class="text-sm font-medium text-slate-400">Total Intercepts</span>
             <span class="kpi-value" id="kpi-intercepts">0</span>
-          </div>
-          <div class="glass-panel group hover:bg-slate-800/80 transition-colors">
+          </a>
+          <a href="#approvals" class="glass-panel group hover:bg-slate-800/80 transition-colors cursor-pointer">
             <span class="text-sm font-medium text-slate-400">Pending Approvals</span>
             <span class="kpi-value text-brand-400" id="kpi-approvals">0</span>
-          </div>
-          <div class="glass-panel group hover:bg-slate-800/80 transition-colors">
+          </a>
+          <a href="#admin" class="glass-panel group hover:bg-slate-800/80 transition-colors cursor-pointer">
             <span class="text-sm font-medium text-slate-400">Active Namespaces</span>
             <span class="kpi-value text-emerald-400" id="kpi-namespaces">1</span>
-          </div>
+          </a>
         </div>
 
         <!-- Recent Activity Snippet -->

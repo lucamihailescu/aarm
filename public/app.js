@@ -569,9 +569,24 @@ setInterval(() => {
   fetchTelemetry();
 }, 2000);
 
+async function fetchSystemVersion() {
+  try {
+    const res = await fetch('/api/system/version');
+    const data = await res.json();
+    const versionEl = document.getElementById('sys-version');
+    if (versionEl && data.version && data.version !== "unknown") {
+      versionEl.innerText = `v.${data.version}`;
+      versionEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    console.error("Failed to fetch system version", e);
+  }
+}
+
 async function init() {
     await fetchNamespaces();
     await fetchPdeState();
+    fetchSystemVersion();
     fetchApprovals();
     fetchTelemetry();
 }

@@ -1,3 +1,5 @@
 node_modules
 .env
 .env.local
+pgdata/
+__pycache__postgres_data/

@@ -6,6 +6,25 @@ import { policyEngine } from './src/PolicyEngine.ts';
 
 const PORT = 3000;
 
+async function getAppVersion() {
+  const envVersion = Deno.env.get("APP_VERSION");
+  if (envVersion && envVersion !== "unknown") return envVersion.trim();
+
+  try {
+    const head = await Deno.readTextFile(".git/HEAD");
+    const match = head.match(/^ref: (.*)$/);
+    if (match) {
+      const refPath = match[1];
+      const hash = await Deno.readTextFile(`.git/${refPath}`);
+      return hash.trim().substring(0, 7);
+    }
+    return head.trim().substring(0, 7);
+  } catch {
+    return "unknown";
+  }
+}
+const APP_VERSION = await getAppVersion();
+
 const handler = async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
 
@@ -83,6 +102,12 @@ const handler = async (req: Request): Promise<Response> => {
     } catch(e: any) { 
         return new Response(JSON.stringify({ error: e.message }), { status: 400 }); 
     }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/system/version') {
+    return new Response(JSON.stringify({ version: APP_VERSION }), {
+      headers: { "Content-Type": "application/json" }
+    });
   }
 
   // Serve static files from 'public' directory

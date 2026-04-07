@@ -41,4 +41,10 @@ The AARM platform is built on modern, secure technologies:
 
 ## Getting Started
 
+### Configuration
+
+You can configure the platform via environment variables locally or in your `.env` file:
+
+- \`APP_VERSION\`: Overrides the dynamic Git commit tag displayed on the Enterprise Dashboard. Useful when deploying via immutable Docker images. Example: \`APP_VERSION="v.2.1.0"\`.
+
 *(Further instructions on how to install, configure, and start the development environment go here...)*
