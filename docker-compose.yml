@@ -4,7 +4,7 @@ services:
     command: >
       sh -c "deno run -A npm:prisma@^5.20.0 db push && deno run -A npm:prisma@^5.20.0 generate && deno run -A server.ts"
     environment:
-      DATABASE_URL: postgresql://aarm:aarm_password@postgres:5432/aarm_policies?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
@@ -20,9 +20,9 @@ services:
   postgres:
     image: postgres:latest
     environment:
-      POSTGRES_USER: aarm
-      POSTGRES_PASSWORD: aarm_password
-      POSTGRES_DB: aarm_policies
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
