@@ -184,6 +184,29 @@ export class PolicyEngine {
     }
   }
 
+  async registerApplication(namespace: string, metadata: { ownerTeam?: string, supportEmail?: string, environment?: string } = {}) {
+    this.namespaces.set(namespace, { policies: { staticPolicies: {} }, entities: [] });
+    // First ensure the base application namespace is handled
+    await this.ensureNamespaceAsync(namespace);
+    
+    // Then upsert metadata attributes via update
+    await prisma.application.update({
+      where: { id: namespace },
+      data: {
+        ownerTeam: metadata.ownerTeam || null,
+        supportEmail: metadata.supportEmail || null,
+        environment: metadata.environment || null,
+      }
+    });
+  }
+
+  async getApplicationDetails(namespace: string) {
+    const app = await prisma.application.findUnique({
+      where: { id: namespace }
+    });
+    return app;
+  }
+
   getPolicies(namespace: string) {
     this.ensureNamespace(namespace);
     return this.namespaces.get(namespace)?.policies;

@@ -435,9 +435,80 @@
                      <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Application Name</label>
                      <input type="text" id="admin-new-app" class="styled-input" placeholder="e.g. HQ">
                    </div>
+                   <div class="flex flex-col gap-1.5">
+                     <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Owner Team</label>
+                     <input type="text" id="admin-new-app-owner" class="styled-input" placeholder="e.g. Operations">
+                   </div>
+                   <div class="flex flex-col gap-1.5">
+                     <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Support Email</label>
+                     <input type="email" id="admin-new-app-email" class="styled-input" placeholder="e.g. ops@company.com">
+                   </div>
+                   <div class="flex flex-col gap-1.5">
+                     <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Environment Type</label>
+                     <select id="admin-new-app-env" class="styled-input">
+                       <option value="DEV">DEV</option>
+                       <option value="UAT">UAT</option>
+                       <option value="PROD">PROD</option>
+                     </select>
+                   </div>
                    <button id="btn-create-app" class="btn-primary w-full mt-2">Create Application</button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- APP DETAIL ADMIN VIEW -->
+          <div id="admin-app-detail-view" class="hidden flex flex-col gap-4">
+            <div class="mb-2 flex flex-col gap-2">
+              <button id="btn-admin-app-back" class="text-sm text-brand-400 hover:text-brand-300 self-start transition-colors flex items-center gap-1">
+                 &larr; Back to Applications
+              </button>
+              <div>
+                <h3 class="text-xl font-semibold text-white flex items-center gap-2">Application: <span id="admin-detail-app-name" class="text-emerald-400 font-mono"></span></h3>
+                <p class="text-sm text-slate-400 mt-1">Details and associated policies for this application.</p>
+              </div>
+            </div>
+
+            <!-- Metadata Section -->
+            <div class="bg-black/10 p-4 rounded-lg border border-slate-700/30 flex flex-wrap gap-x-8 gap-y-4">
+               <div>
+                  <span class="block text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-1">Owner Team</span>
+                  <span id="admin-detail-app-owner" class="text-slate-200 text-sm font-medium">-</span>
+               </div>
+               <div>
+                  <span class="block text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-1">Support Email</span>
+                  <span id="admin-detail-app-email" class="text-slate-200 text-sm font-medium">-</span>
+               </div>
+               <div>
+                  <span class="block text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-1">Environment</span>
+                  <span id="admin-detail-app-env" class="px-2 py-0.5 rounded text-xs border border-brand-500/30 bg-brand-500/10 text-brand-300 font-medium">-</span>
+               </div>
+               <div>
+                  <span class="block text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-1">Created At</span>
+                  <span id="admin-detail-app-created" class="text-slate-300 text-sm font-mono">-</span>
+               </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+              <div class="flex flex-col gap-4">
+                <h4 class="font-medium text-slate-300 border-b border-slate-700 pb-2">Active Policies</h4>
+                <div class="bg-[#0b1120] border border-slate-700/50 rounded-lg p-4 max-h-[300px] overflow-y-auto">
+                    <pre id="admin-app-policies" class="text-amber-200/90 text-xs font-mono whitespace-pre-wrap">Loading policies...</pre>
+                </div>
+              </div>
+              
+              <div class="flex flex-col gap-4">
+                <h4 class="font-medium text-slate-300 border-b border-slate-700 pb-2">Application Context (Entities)</h4>
+                <div class="bg-[#0b1120] border border-slate-700/50 rounded-lg p-4 max-h-[300px] overflow-y-auto">
+                    <pre id="admin-app-entities" class="text-sky-200/90 text-xs font-mono whitespace-pre-wrap">Loading context...</pre>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex justify-end">
+                <button id="btn-edit-app-policies" class="btn-primary flex items-center gap-2">
+                    <span>✏️</span> Edit in Policy Editor
+                </button>
             </div>
           </div>
 

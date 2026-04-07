@@ -42,10 +42,28 @@ const btnAdminBack = document.getElementById('btn-admin-back');
 const adminDetailNsName = document.getElementById('admin-detail-ns-name');
 const adminAppList = document.getElementById('admin-app-list');
 const adminNewAppInput = document.getElementById('admin-new-app');
+const adminNewAppOwner = document.getElementById('admin-new-app-owner');
+const adminNewAppEmail = document.getElementById('admin-new-app-email');
+const adminNewAppEnv = document.getElementById('admin-new-app-env');
 const btnCreateApp = document.getElementById('btn-create-app');
+
+// App Details View
+const adminAppDetailView = document.getElementById('admin-app-detail-view');
+const btnAdminAppBack = document.getElementById('btn-admin-app-back');
+const adminDetailAppName = document.getElementById('admin-detail-app-name');
+const adminAppPolicies = document.getElementById('admin-app-policies');
+const adminAppEntities = document.getElementById('admin-app-entities');
+const btnEditAppPolicies = document.getElementById('btn-edit-app-policies');
+
+// Metadata Application Fields
+const adminDetailAppOwner = document.getElementById('admin-detail-app-owner');
+const adminDetailAppEmail = document.getElementById('admin-detail-app-email');
+const adminDetailAppEnv = document.getElementById('admin-detail-app-env');
+const adminDetailAppCreated = document.getElementById('admin-detail-app-created');
 
 // State for Admin View
 let currentAdminNamespace = null;
+let currentAdminApp = null;
 let currentNamespacesData = [];
 
 // State counters
@@ -333,13 +351,67 @@ window.renderAdminAppList = (rootNs) => {
      adminAppList.innerHTML = `<tr><td class="p-4 text-center text-slate-500">No applications registered</td></tr>`;
   } else {
      adminAppList.innerHTML = apps.map(app => `
-       <tr class="hover:bg-slate-800/50 transition-colors">
-          <td class="px-5 py-3 flex items-center gap-2">
-             <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-             <span class="font-mono text-slate-200">${app}</span>
+       <tr class="hover:bg-slate-800/50 transition-colors cursor-pointer group" onclick="openAppDetails('${app}')">
+          <td class="px-5 py-3 flex items-center justify-between">
+             <div class="flex items-center gap-2">
+                 <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                 <span class="font-mono text-slate-200 group-hover:text-brand-300 transition-colors">${app}</span>
+             </div>
+             <span class="text-xs text-slate-500 group-hover:text-slate-400">&rarr; View</span>
           </td>
        </tr>
      `).join('');
+  }
+};
+
+window.openAppDetails = async (appName) => {
+  currentAdminApp = appName;
+  const fullNamespace = `${currentAdminNamespace}::${appName}`;
+  adminDetailAppName.innerText = fullNamespace;
+  adminDetailsView.classList.add('hidden');
+  adminAppDetailView.classList.remove('hidden');
+  
+  if (adminAppPolicies) adminAppPolicies.innerText = 'Loading...';
+  if (adminAppEntities) adminAppEntities.innerText = 'Loading...';
+  if (adminDetailAppOwner) adminDetailAppOwner.innerText = '-';
+  if (adminDetailAppEmail) adminDetailAppEmail.innerText = '-';
+  if (adminDetailAppEnv) adminDetailAppEnv.innerText = '-';
+  if (adminDetailAppCreated) adminDetailAppCreated.innerText = '-';
+  
+  try {
+    const [polRes, entRes, metricsRes] = await Promise.all([
+      fetch('/api/pde/policies?namespace=' + encodeURIComponent(fullNamespace)),
+      fetch('/api/pde/entities?namespace=' + encodeURIComponent(fullNamespace)),
+      fetch('/api/pde/applications/details?namespace=' + encodeURIComponent(fullNamespace))
+    ]);
+    
+    const policies = (await polRes.json()) || {};
+    const entities = (await entRes.json()) || [];
+    const meta = (await metricsRes.json()) || {};
+    
+    if (adminDetailAppOwner) adminDetailAppOwner.innerText = meta.ownerTeam || 'Unassigned';
+    if (adminDetailAppEmail) adminDetailAppEmail.innerText = meta.supportEmail || 'Unassigned';
+    if (adminDetailAppEnv) adminDetailAppEnv.innerText = meta.environment || 'UNKNOWN';
+    if (adminDetailAppCreated && meta.createdAt) {
+      adminDetailAppCreated.innerText = new Date(meta.createdAt).toLocaleString();
+    }
+    
+    let polStr = '';
+    if (policies.staticPolicies && Object.keys(policies.staticPolicies).length > 0) {
+      for (const [key, val] of Object.entries(policies.staticPolicies)) {
+        polStr += `// ${key}\n${val.trim()}\n\n`;
+      }
+    } else {
+      polStr = 'No policies currently defined for this application.';
+    }
+    
+    if (adminAppPolicies) adminAppPolicies.innerText = polStr;
+    if (adminAppEntities) adminAppEntities.innerText = JSON.stringify(entities, null, 2);
+    
+  } catch(e) {
+    console.error("Failed to fetch app details", e);
+    if (adminAppPolicies) adminAppPolicies.innerText = 'Error loading policies';
+    if (adminAppEntities) adminAppEntities.innerText = 'Error loading context';
   }
 };
 
@@ -443,22 +515,68 @@ btnAdminBack.addEventListener('click', () => {
   currentAdminNamespace = null;
 });
 
+if (btnAdminAppBack) {
+  btnAdminAppBack.addEventListener('click', () => {
+    adminAppDetailView.classList.add('hidden');
+    adminDetailsView.classList.remove('hidden');
+    currentAdminApp = null;
+  });
+}
+
+if (btnEditAppPolicies) {
+  btnEditAppPolicies.addEventListener('click', () => {
+    const fullNamespace = `${currentAdminNamespace}::${currentAdminApp}`;
+    window.location.hash = '#policies';
+    setTimeout(() => {
+      if (pdeNamespaceSelect) {
+        // Only select if it exists or we could fetch it, since namespaces might need syncing
+        const opts = Array.from(pdeNamespaceSelect.options).map(o => o.value);
+        if (opts.includes(fullNamespace)) {
+          pdeNamespaceSelect.value = fullNamespace;
+        } else {
+          // If it's not strictly an option, add it temporarily so it works
+          const opt = document.createElement('option');
+          opt.value = fullNamespace;
+          opt.innerText = fullNamespace;
+          pdeNamespaceSelect.appendChild(opt);
+          pdeNamespaceSelect.value = fullNamespace;
+        }
+        fetchPdeState();
+      }
+    }, 100);
+  });
+}
+
 btnCreateApp.addEventListener('click', async () => {
     if (!currentAdminNamespace) return;
     const appName = adminNewAppInput.value.trim();
     if (!appName) return;
     
+    const ownerTeam = adminNewAppOwner ? adminNewAppOwner.value.trim() : '';
+    const supportEmail = adminNewAppEmail ? adminNewAppEmail.value.trim() : '';
+    const environment = adminNewAppEnv ? adminNewAppEnv.value : '';
+
     btnCreateApp.disabled = true;
     btnCreateApp.innerText = 'Creating...';
     
     const fullNamespace = `${currentAdminNamespace}::${appName}`;
     try {
-        await fetch('/api/pde/policies?namespace=' + encodeURIComponent(fullNamespace), {
+        await fetch('/api/pde/applications', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ staticPolicies: {} })
+           body: JSON.stringify({ 
+             namespace: fullNamespace,
+             ownerTeam, 
+             supportEmail, 
+             environment 
+           })
         });
+        
         adminNewAppInput.value = '';
+        if (adminNewAppOwner) adminNewAppOwner.value = '';
+        if (adminNewAppEmail) adminNewAppEmail.value = '';
+        if (adminNewAppEnv) adminNewAppEnv.value = 'DEV';
+        
         await fetchNamespaces();
     } catch(e) {
         console.error("Failed to create Application:", e);

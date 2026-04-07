@@ -20,6 +20,9 @@ model Application {
   id            String   @id
   name          String
   namespaceName String
+  ownerTeam     String?
+  supportEmail  String?
+  environment   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
