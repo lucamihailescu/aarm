@@ -207,6 +207,17 @@ export class PolicyEngine {
     return app;
   }
 
+  async updateApplication(namespace: string, metadata: { ownerTeam?: string, supportEmail?: string, environment?: string }) {
+    await prisma.application.update({
+      where: { id: namespace },
+      data: {
+        ownerTeam: metadata.ownerTeam !== undefined ? metadata.ownerTeam : undefined,
+        supportEmail: metadata.supportEmail !== undefined ? metadata.supportEmail : undefined,
+        environment: metadata.environment !== undefined ? metadata.environment : undefined,
+      }
+    });
+  }
+
   getPolicies(namespace: string) {
     this.ensureNamespace(namespace);
     return this.namespaces.get(namespace)?.policies;

@@ -126,6 +126,19 @@ const handler = async (req: Request): Promise<Response> => {
     }
   }
 
+  if (req.method === 'PUT' && url.pathname === '/api/pde/applications') {
+    try {
+      const { namespace, ownerTeam, supportEmail, environment } = await req.json();
+      if (!namespace) {
+         return new Response(JSON.stringify({ error: "Missing namespace" }), { status: 400 });
+      }
+      await policyEngine.updateApplication(namespace, { ownerTeam, supportEmail, environment });
+      return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
+    } catch(e: any) { 
+        return new Response(JSON.stringify({ error: e.message }), { status: 400 }); 
+    }
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/system/version') {
     return new Response(JSON.stringify({ version: APP_VERSION }), {
       headers: { "Content-Type": "application/json" }

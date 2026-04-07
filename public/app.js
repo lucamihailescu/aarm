@@ -60,6 +60,14 @@ const adminDetailAppOwner = document.getElementById('admin-detail-app-owner');
 const adminDetailAppEmail = document.getElementById('admin-detail-app-email');
 const adminDetailAppEnv = document.getElementById('admin-detail-app-env');
 const adminDetailAppCreated = document.getElementById('admin-detail-app-created');
+const btnSaveAppMetadata = document.getElementById('btn-save-app-metadata');
+
+// Modal Elements
+const confirmModal = document.getElementById('confirm-modal');
+const confirmTitle = document.getElementById('confirm-title');
+const confirmDesc = document.getElementById('confirm-desc');
+const btnConfirmCancel = document.getElementById('btn-confirm-cancel');
+const btnConfirmOk = document.getElementById('btn-confirm-ok');
 
 // State for Admin View
 let currentAdminNamespace = null;
@@ -68,6 +76,38 @@ let currentNamespacesData = [];
 
 // State counters
 let totalIntercepts = 0;
+
+// Global Confirm Promise Wrapper
+function showConfirm(title, description) {
+  return new Promise((resolve) => {
+    if (!confirmModal || !confirmTitle || !confirmDesc || !btnConfirmCancel || !btnConfirmOk) {
+       console.warn("Modal elements not found, falling back to native confirm");
+       resolve(confirm(`${title}\n\n${description}`));
+       return;
+    }
+    
+    confirmTitle.innerText = title;
+    confirmDesc.innerText = description;
+    
+    // Show Modal
+    confirmModal.classList.remove('hidden');
+    confirmModal.classList.add('flex');
+    
+    // Setup Handlers
+    const cleanup = () => {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+      btnConfirmCancel.removeEventListener('click', onCancel);
+      btnConfirmOk.removeEventListener('click', onOk);
+    };
+    
+    const onCancel = () => { cleanup(); resolve(false); };
+    const onOk = () => { cleanup(); resolve(true); };
+    
+    btnConfirmCancel.addEventListener('click', onCancel);
+    btnConfirmOk.addEventListener('click', onOk);
+  });
+}
 
 // --- 1. Routing & Navigation ---
 
@@ -373,9 +413,9 @@ window.openAppDetails = async (appName) => {
   
   if (adminAppPolicies) adminAppPolicies.innerText = 'Loading...';
   if (adminAppEntities) adminAppEntities.innerText = 'Loading...';
-  if (adminDetailAppOwner) adminDetailAppOwner.innerText = '-';
-  if (adminDetailAppEmail) adminDetailAppEmail.innerText = '-';
-  if (adminDetailAppEnv) adminDetailAppEnv.innerText = '-';
+  if (adminDetailAppOwner) adminDetailAppOwner.value = '';
+  if (adminDetailAppEmail) adminDetailAppEmail.value = '';
+  if (adminDetailAppEnv) adminDetailAppEnv.value = 'UNKNOWN';
   if (adminDetailAppCreated) adminDetailAppCreated.innerText = '-';
   
   try {
@@ -389,9 +429,9 @@ window.openAppDetails = async (appName) => {
     const entities = (await entRes.json()) || [];
     const meta = (await metricsRes.json()) || {};
     
-    if (adminDetailAppOwner) adminDetailAppOwner.innerText = meta.ownerTeam || 'Unassigned';
-    if (adminDetailAppEmail) adminDetailAppEmail.innerText = meta.supportEmail || 'Unassigned';
-    if (adminDetailAppEnv) adminDetailAppEnv.innerText = meta.environment || 'UNKNOWN';
+    if (adminDetailAppOwner) adminDetailAppOwner.value = meta.ownerTeam || '';
+    if (adminDetailAppEmail) adminDetailAppEmail.value = meta.supportEmail || '';
+    if (adminDetailAppEnv) adminDetailAppEnv.value = meta.environment || 'UNKNOWN';
     if (adminDetailAppCreated && meta.createdAt) {
       adminDetailAppCreated.innerText = new Date(meta.createdAt).toLocaleString();
     }
@@ -544,6 +584,49 @@ if (btnEditAppPolicies) {
         fetchPdeState();
       }
     }, 100);
+  });
+}
+
+if (btnSaveAppMetadata) {
+  btnSaveAppMetadata.addEventListener('click', async () => {
+    if (!currentAdminNamespace || !currentAdminApp) return;
+
+    const isConfirmed = await showConfirm(
+       "Update Application", 
+       "Are you sure you want to save these changes to the active metadata structure?"
+    );
+    if (!isConfirmed) return;
+
+    const fullNamespace = `${currentAdminNamespace}::${currentAdminApp}`;
+    const ownerTeam = adminDetailAppOwner ? adminDetailAppOwner.value.trim() : '';
+    const supportEmail = adminDetailAppEmail ? adminDetailAppEmail.value.trim() : '';
+    const environment = adminDetailAppEnv ? adminDetailAppEnv.value : '';
+
+    btnSaveAppMetadata.disabled = true;
+    const oldText = btnSaveAppMetadata.innerText;
+    btnSaveAppMetadata.innerText = 'Saving...';
+
+    try {
+        await fetch('/api/pde/applications', {
+           method: 'PUT',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ 
+             namespace: fullNamespace,
+             ownerTeam, 
+             supportEmail, 
+             environment 
+           })
+        });
+        btnSaveAppMetadata.innerText = 'Saved!';
+    } catch(e) {
+        console.error("Failed to update Application:", e);
+        btnSaveAppMetadata.innerText = 'Error!';
+    } finally {
+        setTimeout(() => {
+           btnSaveAppMetadata.disabled = false;
+           btnSaveAppMetadata.innerText = oldText;
+        }, 2000);
+    }
   });
 }
 

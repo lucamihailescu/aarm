@@ -2,7 +2,7 @@ services:
   app:
     image: denoland/deno:latest
     command: >
-      sh -c "deno run -A npm:prisma@^5.20.0 db push && deno run -A npm:prisma@^5.20.0 generate && deno run -A server.ts"
+      sh -c "deno run -A npm:tailwindcss@3 -i public/input.css -o public/output.css && deno run -A npm:prisma@^5.20.0 db push && deno run -A npm:prisma@^5.20.0 generate && deno run -A server.ts"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://redis:6379
