@@ -18,7 +18,8 @@
     "npm:prisma@*": "5.22.0",
     "npm:prisma@^5.20.0": "5.22.0",
     "npm:redis@*": "5.11.0",
-    "npm:tailwindcss@3": "3.4.19"
+    "npm:tailwindcss@3": "3.4.19",
+    "npm:tailwindcss@^4.2.2": "4.2.2"
   },
   "jsr": {
     "@std/cli@1.0.28": {
@@ -533,6 +534,9 @@
       ],
       "bin": true
     },
+    "tailwindcss@4.2.2": {
+      "integrity": "sha512-KWBIxs1Xb6NoLdMVqhbhgwZf2PGBpPEiwOqgI4pFIYbNTfBXiKYyWoTsXgBQ9WFg/OlhnvHaY+AEpW7wSmFo2Q=="
+    },
     "thenify-all@1.6.0": {
       "integrity": "sha512-RNxQH/qI8/t3thXJDwcstUO4zeqo64+Uy/+sNVRBx4Xn2OX+OZ9oP+iJnNFqplFra2ZUVeKCSa2oVWi3T4uVmA==",
       "dependencies": [
@@ -571,7 +575,8 @@
       "npm:@cedar-policy/cedar-wasm@*",
       "npm:@prisma/client@^5.20.0",
       "npm:prisma@^5.20.0",
-      "npm:redis@*"
+      "npm:redis@*",
+      "npm:tailwindcss@^4.2.2"
     ]
   }
 }

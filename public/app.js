@@ -1,6 +1,7 @@
 // --- DOM Elements ---
 
 // Navigation & Routing
+// deno-lint-ignore-file no-window-prefix
 const navLinks = document.querySelectorAll('.nav-link');
 const views = document.querySelectorAll('.view');
 const pageTitle = document.getElementById('page-title');
@@ -112,7 +113,8 @@ function showConfirm(title, description) {
 // --- 1. Routing & Navigation ---
 
 function handleRouting() {
-  let hash = window.location.hash || '#dashboard';
+  // deno-lint-ignore no-window
+  const hash = window.location.hash || '#dashboard';
   const targetId = hash.substring(1); // remove '#'
   
   // Hide all views, remove active from links

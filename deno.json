@@ -5,7 +5,8 @@
     "@prisma/client": "npm:@prisma/client@^5.20.0",
     "prisma": "npm:prisma@^5.20.0",
     "redis": "npm:redis",
-    "@std/http/file-server": "jsr:@std/http/file-server"
+    "@std/http/file-server": "jsr:@std/http/file-server",
+    "tailwindcss": "npm:tailwindcss@^4.2.2"
   }
 }
 
