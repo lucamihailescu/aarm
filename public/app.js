@@ -31,6 +31,23 @@ const policyEditor = document.getElementById('policy-editor');
 const entitiesEditor = document.getElementById('entities-editor');
 const btnSavePolicies = document.getElementById('btn-save-policies');
 const btnSaveEntities = document.getElementById('btn-save-entities');
+const btnOpenWizard = document.getElementById('btn-open-wizard');
+
+// Policy Wizard Modal
+const wizardModal = document.getElementById('wizard-modal');
+const wizRuleName = document.getElementById('wiz-rule-name');
+const wizEffectPermit = document.querySelector('input[name="wiz-effect"][value="permit"]');
+const wizPrincipalType = document.getElementById('wiz-principal-type');
+const wizPrincipalVal = document.getElementById('wiz-principal-val');
+const wizPrincipalCustom = document.getElementById('wiz-principal-custom');
+const wizActionType = document.getElementById('wiz-action-type');
+const wizActionVal = document.getElementById('wiz-action-val');
+const wizActionCustom = document.getElementById('wiz-action-custom');
+const wizResourceType = document.getElementById('wiz-resource-type');
+const wizResourceVal = document.getElementById('wiz-resource-val');
+const wizResourceCustom = document.getElementById('wiz-resource-custom');
+const btnWizCancel = document.getElementById('btn-wiz-cancel');
+const btnWizGenerate = document.getElementById('btn-wiz-generate');
 
 // Admin View
 const adminNamespaceList = document.getElementById('admin-namespace-list');
@@ -702,6 +719,108 @@ btnCreateNs.addEventListener('click', async () => {
         btnCreateNs.innerText = 'Initialize Namespace';
     }
 });
+
+function setupWizardEvents() {
+  if (!btnOpenWizard) return;
+  
+  btnOpenWizard.addEventListener('click', () => {
+    wizardModal.classList.remove('hidden');
+    wizardModal.classList.add('flex');
+  });
+  
+  btnWizCancel.addEventListener('click', () => {
+    wizardModal.classList.add('hidden');
+    wizardModal.classList.remove('flex');
+  });
+  
+  const setupToggle = (typeSel, valInp, customInp) => {
+    typeSel.addEventListener('change', () => {
+      if (typeSel.value === 'Any') {
+        valInp.disabled = true;
+        valInp.value = '';
+        customInp.classList.add('hidden');
+      } else if (typeSel.value === 'Custom') {
+        valInp.disabled = false;
+        customInp.classList.remove('hidden');
+        customInp.focus();
+      } else {
+        valInp.disabled = false;
+        customInp.classList.add('hidden');
+        valInp.focus();
+      }
+    });
+  };
+  
+  setupToggle(wizPrincipalType, wizPrincipalVal, wizPrincipalCustom);
+  setupToggle(wizActionType, wizActionVal, wizActionCustom);
+  setupToggle(wizResourceType, wizResourceVal, wizResourceCustom);
+  
+  btnWizGenerate.addEventListener('click', () => {
+    const name = wizRuleName.value.trim() || 'New Rule';
+    const effect = wizEffectPermit && wizEffectPermit.checked ? 'permit' : 'forbid';
+    
+    let principalStr = '';
+    if (wizPrincipalType.value !== 'Any' && wizPrincipalVal.value.trim()) {
+      const typeStr = wizPrincipalType.value === 'Custom' ? (wizPrincipalCustom.value.trim() || 'Custom') : wizPrincipalType.value;
+      principalStr = `principal == ${typeStr}::"${wizPrincipalVal.value.trim()}"`;
+    } else {
+      principalStr = `principal`;
+    }
+    
+    let actionStr = '';
+    if (wizActionType.value !== 'Any' && wizActionVal.value.trim()) {
+      const typeStr = wizActionType.value === 'Custom' ? (wizActionCustom.value.trim() || 'Custom') : wizActionType.value;
+      actionStr = `action == ${typeStr}::"${wizActionVal.value.trim()}"`;
+    } else {
+      actionStr = `action`;
+    }
+    
+    let resourceStr = '';
+    if (wizResourceType.value !== 'Any' && wizResourceVal.value.trim()) {
+       const typeStr = wizResourceType.value === 'Custom' ? (wizResourceCustom.value.trim() || 'Custom') : wizResourceType.value;
+       resourceStr = `resource == ${typeStr}::"${wizResourceVal.value.trim()}"`;
+    } else {
+       resourceStr = `resource`;
+    }
+    
+    const conditions = [principalStr, actionStr, resourceStr].join(',\n  ');
+    
+    let policy = `// ${name}\n${effect} (\n  ${conditions}\n);`;
+    
+    // Append to editor
+    if (policyEditor.value) {
+      if (!policyEditor.value.endsWith('\\n\\n')) {
+        policyEditor.value += policyEditor.value.endsWith('\\n') ? '\\n' : '\\n\\n';
+      }
+      policyEditor.value += policy + '\\n\\n';
+    } else {
+      policyEditor.value = policy + '\\n\\n';
+    }
+    
+    // Close modal
+    wizardModal.classList.add('hidden');
+    wizardModal.classList.remove('flex');
+    
+    // Reset forms
+    wizRuleName.value = '';
+    wizPrincipalType.value = 'Any';
+    wizPrincipalVal.value = '';
+    wizPrincipalVal.disabled = true;
+    wizPrincipalCustom.value = '';
+    wizPrincipalCustom.classList.add('hidden');
+    wizActionType.value = 'Any';
+    wizActionVal.value = '';
+    wizActionVal.disabled = true;
+    wizActionCustom.value = '';
+    wizActionCustom.classList.add('hidden');
+    wizResourceType.value = 'Any';
+    wizResourceVal.value = '';
+    wizResourceVal.disabled = true;
+    wizResourceCustom.value = '';
+    wizResourceCustom.classList.add('hidden');
+  });
+}
+setupWizardEvents();
 
 btnSavePolicies.addEventListener('click', async () => {
   btnSavePolicies.innerText = 'Saving...';

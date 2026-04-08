@@ -242,7 +242,10 @@
                   <span class="text-amber-400">{"}</span>
                   <span class="font-medium text-slate-200">Cedar Policy Schema</span>
                 </div>
-                <button id="btn-save-policies" class="btn-secondary text-xs py-1.5">Save Definition</button>
+                <div class="flex gap-2">
+                  <button id="btn-open-wizard" class="btn-primary text-xs py-1.5 flex items-center gap-1"><span>✨</span> Wizard</button>
+                  <button id="btn-save-policies" class="btn-secondary text-xs py-1.5">Save Definition</button>
+                </div>
               </div>
               <textarea id="policy-editor" class="code-editor bg-[#0b1120] text-amber-200/90 w-full p-4 outline-none resize-none flex-grow" spellcheck="false" placeholder="Loading policies..."></textarea>
             </div>
@@ -455,6 +458,99 @@
       <div class="mt-6 flex justify-end gap-3">
         <button id="btn-confirm-cancel" class="btn-secondary">Cancel</button>
         <button id="btn-confirm-ok" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Policy Wizard Modal -->
+  <div id="wizard-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-[#0f172a] border border-slate-700 shadow-2xl rounded-xl p-6 max-w-lg w-full animate-[fadeIn_0.2s_ease-out_forwards]">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+           <h4 class="text-xl font-semibold text-white flex items-center gap-2"><span>✨</span> Create Rule Wizard</h4>
+           <p class="text-xs text-slate-400 mt-1">Visually construct a Cedar access control rule.</p>
+        </div>
+      </div>
+      
+      <div class="flex flex-col gap-4">
+        <!-- Rule Name -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Rule Name</label>
+          <input type="text" id="wiz-rule-name" class="styled-input" placeholder="e.g. Allow Finance Read">
+        </div>
+
+        <!-- Effect -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Effect</label>
+          <div class="flex gap-3">
+             <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+               <input type="radio" name="wiz-effect" value="permit" checked class="text-emerald-500 bg-slate-800 border-slate-600 focus:ring-emerald-500">
+               <span class="text-emerald-400 font-medium">Permit</span>
+             </label>
+             <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+               <input type="radio" name="wiz-effect" value="forbid" class="text-rose-500 bg-slate-800 border-slate-600 focus:ring-rose-500">
+               <span class="text-rose-400 font-medium">Forbid</span>
+             </label>
+          </div>
+        </div>
+
+        <!-- Principal -->
+        <div class="grid grid-cols-2 gap-3">
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Principal Type</label>
+             <select id="wiz-principal-type" class="styled-input py-2">
+               <option value="Any">ANY (All users)</option>
+               <option value="Role">Role</option>
+               <option value="User">User</option>
+               <option value="Custom">Custom Type...</option>
+             </select>
+             <input type="text" id="wiz-principal-custom" class="styled-input hidden mt-1" placeholder="e.g. Identity">
+           </div>
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Value</label>
+             <input type="text" id="wiz-principal-val" class="styled-input" placeholder="e.g. admin" disabled>
+           </div>
+        </div>
+
+        <!-- Action -->
+        <div class="grid grid-cols-2 gap-3">
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Action Type</label>
+             <select id="wiz-action-type" class="styled-input py-2">
+               <option value="Any">ANY (All actions)</option>
+               <option value="Action">Action</option>
+               <option value="Custom">Custom Type...</option>
+             </select>
+             <input type="text" id="wiz-action-custom" class="styled-input hidden mt-1" placeholder="e.g. Operation">
+           </div>
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Value</label>
+             <input type="text" id="wiz-action-val" class="styled-input" placeholder="e.g. ReadDatabase" disabled>
+           </div>
+        </div>
+
+        <!-- Resource -->
+        <div class="grid grid-cols-2 gap-3">
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Resource Type</label>
+             <select id="wiz-resource-type" class="styled-input py-2">
+               <option value="Any">ANY (All resources)</option>
+               <option value="Application">Application</option>
+               <option value="Custom">Custom Type...</option>
+             </select>
+             <input type="text" id="wiz-resource-custom" class="styled-input hidden mt-1" placeholder="e.g. Database">
+           </div>
+           <div class="flex flex-col gap-1.5">
+             <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Value</label>
+             <input type="text" id="wiz-resource-val" class="styled-input" placeholder="e.g. AppX" disabled>
+           </div>
+        </div>
+
+      </div>
+      
+      <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+        <button id="btn-wiz-cancel" class="btn-secondary">Cancel</button>
+        <button id="btn-wiz-generate" class="btn-primary flex items-center gap-2"><span>⚡</span> Generate & Append</button>
       </div>
     </div>
   </div>
