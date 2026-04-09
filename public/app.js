@@ -596,6 +596,44 @@ window.createPolicyFromLog = async (eventId) => {
   }
 };
 
+window.simulateActionFromLog = async (eventId) => {
+  const ev = window.telemetryLogsCache[eventId];
+  if (!ev) return;
+
+  // Extract values
+  let actionStr = ev.actionType || ev.action?.type || ev.tool || ev.eventType || 'unknown';
+  if (actionStr.includes('::')) actionStr = actionStr.split('::').pop();
+  
+  let principalId = ev.context?.principalId || ev.identity?.human || ev.principalId || 'unknown';
+  let bu = ev.context?.businessUnit || ev.businessUnit || ev.context?.business_unit || 'Default';
+  let app = ev.context?.application || ev.application || ev.identity?.service || 'Global';
+
+  // Navigate to simulator
+  window.location.hash = '#simulator';
+
+  // Fill Simulator inputs
+  if (simBuInput) simBuInput.value = bu;
+  if (simAppInput) simAppInput.value = app;
+  if (simPrincipalInput) simPrincipalInput.value = principalId;
+
+  // Ensure action is available in select
+  if (simActionSelect) {
+      let optionExists = Array.from(simActionSelect.options).some(o => o.value === actionStr);
+      if (!optionExists) {
+          const opt = document.createElement("option");
+          opt.value = actionStr;
+          opt.text = actionStr;
+          simActionSelect.add(opt);
+      }
+      simActionSelect.value = actionStr;
+  }
+
+  // A small timeout to let the view render and transition before clicking
+  setTimeout(() => {
+     if (btnSimulate) btnSimulate.click();
+  }, 100);
+};
+
 window.toggleTelemetry = (id) => {
   if (expandedTelemetryIds.has(id)) {
     expandedTelemetryIds.delete(id);
@@ -689,7 +727,11 @@ async function fetchTelemetry() {
 
       let createPolicyBtn = '';
       if (ev.decision?.toUpperCase() === 'DENY') {
-         createPolicyBtn = `<div class="mt-3"><button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button></div>`;
+         createPolicyBtn = `
+         <div class="mt-3 flex gap-2">
+            <button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button>
+            <button onclick="simulateActionFromLog('${ev.eventId}')" class="btn-primary text-[10px] py-1 px-3 bg-indigo-500 hover:bg-indigo-400 border-indigo-600" onclick="event.stopPropagation();"><span>⚡</span> Simulate Action</button>
+         </div>`;
       }
 
       return `
@@ -866,7 +908,11 @@ window.fetchApplicationLogs = async (appName, page) => {
 
       let createPolicyBtn = '';
       if (ev.decision?.toUpperCase() === 'DENY') {
-         createPolicyBtn = `<div class="mt-3"><button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button></div>`;
+         createPolicyBtn = `
+         <div class="mt-3 flex gap-2">
+            <button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button>
+            <button onclick="simulateActionFromLog('${ev.eventId}')" class="btn-primary text-[10px] py-1 px-3 bg-indigo-500 hover:bg-indigo-400 border-indigo-600" onclick="event.stopPropagation();"><span>⚡</span> Simulate Action</button>
+         </div>`;
       }
       
       return `
