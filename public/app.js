@@ -257,6 +257,7 @@ const btnOpenWizard = document.getElementById('btn-open-wizard');
 const wizardModal = document.getElementById('wizard-modal');
 const wizRuleName = document.getElementById('wiz-rule-name');
 const wizEffectPermit = document.querySelector('input[name="wiz-effect"][value="permit"]');
+const wizStepUp = document.getElementById('wiz-step-up');
 const wizPrincipalType = document.getElementById('wiz-principal-type');
 const wizPrincipalVal = document.getElementById('wiz-principal-val');
 const wizPrincipalCustom = document.getElementById('wiz-principal-custom');
@@ -496,10 +497,11 @@ async function fetchApprovals() {
 
 async function resolveApproval(id, approved) {
   try {
+    const reviewerName = activeAccount ? (activeAccount.name || activeAccount.username) : 'Admin via Dashboard';
     await fetch(`/api/approvals/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved, reviewer: 'Admin via Dashboard' })
+      body: JSON.stringify({ approved, reviewer: reviewerName })
     });
     fetchApprovals();
     fetchTelemetry(); 
@@ -1273,16 +1275,21 @@ function setupWizardEvents() {
     
     const conditions = [principalStr, actionStr, resourceStr].join(',\n  ');
     
-    let policy = `// ${name}\n${effect} (\n  ${conditions}\n);`;
+    let policy = `// ${name}\n${effect} (\n  ${conditions}\n)`;
+    if (wizStepUp && wizStepUp.checked) {
+       policy += `\nwhen {\n  context.isApproved == true\n};\n\n`;
+    } else {
+       policy += `;\n\n`;
+    }
     
     // Append to editor
     if (policyEditor.value) {
       if (!policyEditor.value.endsWith('\n\n')) {
         policyEditor.value += policyEditor.value.endsWith('\n') ? '\n' : '\n\n';
       }
-      policyEditor.value += policy + '\n\n';
+      policyEditor.value += policy;
     } else {
-      policyEditor.value = policy + '\n\n';
+      policyEditor.value = policy;
     }
     
     // Close modal
@@ -1291,6 +1298,7 @@ function setupWizardEvents() {
     
     // Reset forms
     wizRuleName.value = '';
+    if (wizStepUp) wizStepUp.checked = false;
     wizPrincipalType.value = 'Any';
     wizPrincipalVal.value = '';
     wizPrincipalVal.disabled = true;
