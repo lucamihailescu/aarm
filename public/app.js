@@ -1231,12 +1231,12 @@ function setupWizardEvents() {
     
     // Append to editor
     if (policyEditor.value) {
-      if (!policyEditor.value.endsWith('\\n\\n')) {
-        policyEditor.value += policyEditor.value.endsWith('\\n') ? '\\n' : '\\n\\n';
+      if (!policyEditor.value.endsWith('\n\n')) {
+        policyEditor.value += policyEditor.value.endsWith('\n') ? '\n' : '\n\n';
       }
-      policyEditor.value += policy + '\\n\\n';
+      policyEditor.value += policy + '\n\n';
     } else {
-      policyEditor.value = policy + '\\n\\n';
+      policyEditor.value = policy + '\n\n';
     }
     
     // Close modal
