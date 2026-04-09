@@ -511,6 +511,90 @@ async function resolveApproval(id, approved) {
 
 // State counters
 const expandedTelemetryIds = new Set();
+window.telemetryLogsCache = {};
+
+window.createPolicyFromLog = async (eventId) => {
+  const ev = window.telemetryLogsCache[eventId];
+  if (!ev) return;
+
+  // Extract action/tool
+  let actionStr = ev.actionType || ev.action?.type || ev.tool || ev.eventType || 'unknown';
+  if (actionStr.includes('::')) actionStr = actionStr.split('::').pop(); // Get last part
+  
+  // Extract principal
+  let principalId = ev.context?.principalId || ev.identity?.human || ev.principalId || 'unknown';
+
+  // Extract namespace
+  let bu = ev.context?.businessUnit || ev.businessUnit || ev.context?.business_unit;
+  let app = ev.context?.application || ev.application || ev.identity?.service;
+  let ns = 'Default::Global';
+  if (bu && app) ns = `${bu}::${app}`;
+
+  // Switch to Policies view
+  window.location.hash = '#policies';
+  
+  // Make sure namespaces are loaded if we just loaded the page
+  if (currentNamespacesData.length === 0) {
+      await fetchNamespaces();
+  }
+
+  // Select namespace & fetch its state
+  if (pdeNamespaceSelect) {
+    const opts = Array.from(pdeNamespaceSelect.options).map(o => o.value);
+    if (!opts.includes(ns)) {
+       // If namespace not in list, it might be auto-created but not cached locally, we manually add it
+       const option = document.createElement("option");
+       option.value = ns;
+       option.text = ns;
+       pdeNamespaceSelect.add(option);
+    }
+    pdeNamespaceSelect.value = ns;
+    await fetchPdeState();
+  }
+
+  // Open Wizard
+  if (wizardModal) {
+    wizardModal.classList.remove('hidden');
+    wizardModal.classList.add('flex');
+    
+    // Fill the fields
+    if (wizRuleName) wizRuleName.value = `Allow ${actionStr}`;
+    if (wizEffectPermit) wizEffectPermit.checked = true;
+    
+    // Sanitize generated Cedar namespace
+    const cleanNs = ns.replace(/[^a-zA-Z0-9_]/g, '_');
+
+    if (wizPrincipalType && wizPrincipalVal) {
+       wizPrincipalType.value = 'Custom';
+       wizPrincipalVal.disabled = false;
+       wizPrincipalVal.value = principalId;
+       if (wizPrincipalCustom) {
+           wizPrincipalCustom.classList.remove('hidden');
+           wizPrincipalCustom.value = `${cleanNs}::User`;
+       }
+    }
+    
+    if (wizActionType && wizActionVal) {
+       wizActionType.value = 'Custom';
+       wizActionVal.disabled = false;
+       wizActionVal.value = actionStr;
+       if (wizActionCustom) {
+           wizActionCustom.classList.remove('hidden');
+           wizActionCustom.value = `${cleanNs}::Action`;
+       }
+    }
+    
+    if (wizResourceType && wizResourceVal) {
+       wizResourceType.value = 'Custom';
+       wizResourceVal.disabled = false;
+       wizResourceVal.value = 'Backend';
+       if (wizResourceCustom) {
+           wizResourceCustom.classList.remove('hidden');
+           wizResourceCustom.value = `${cleanNs}::System`;
+       }
+    }
+  }
+};
 
 window.toggleTelemetry = (id) => {
   if (expandedTelemetryIds.has(id)) {
@@ -601,6 +685,13 @@ async function fetchTelemetry() {
 
       const appName = ev.context?.application || ev.application || "Unknown App";
 
+      window.telemetryLogsCache[ev.eventId] = ev;
+
+      let createPolicyBtn = '';
+      if (ev.decision?.toUpperCase() === 'DENY') {
+         createPolicyBtn = `<div class="mt-3"><button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button></div>`;
+      }
+
       return `
         <tr class="hover:bg-slate-800/50 transition-colors group cursor-pointer" onclick="toggleTelemetry('${ev.eventId}')">
           <td class="px-5 py-3 border-b border-slate-700/50 font-mono text-xs text-slate-500 flex items-center gap-2">
@@ -617,8 +708,11 @@ async function fetchTelemetry() {
         <tr class="${rowHiddenState} bg-slate-950/80 details-row-${ev.eventId}">
           <td colspan="6" class="p-4 border-b border-slate-700/50">
             <div class="bg-black/60 p-4 rounded-lg border border-slate-700/50 font-mono text-xs shadow-inner">
-              <div class="text-[10px] text-brand-400 mb-2 uppercase tracking-widest font-bold border-b border-slate-800 pb-2">AML Canonical Action Schema Match</div>
+              <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                 <div class="text-[10px] text-brand-400 uppercase tracking-widest font-bold">AML Canonical Action Schema Match</div>
+              </div>
               <pre class="text-sky-300 whitespace-pre-wrap">${escapedJson}</pre>
+              ${createPolicyBtn}
             </div>
           </td>
         </tr>
@@ -768,6 +862,13 @@ window.fetchApplicationLogs = async (appName, page) => {
       
       const normalizedJson = JSON.stringify(ev, null, 2).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       
+      window.telemetryLogsCache[ev.eventId] = ev;
+
+      let createPolicyBtn = '';
+      if (ev.decision?.toUpperCase() === 'DENY') {
+         createPolicyBtn = `<div class="mt-3"><button onclick="createPolicyFromLog('${ev.eventId}')" class="btn-success text-[10px] py-1 px-3" onclick="event.stopPropagation();"><span>✨</span> Create Policy from Log</button></div>`;
+      }
+      
       return `
         <tr class="hover:bg-slate-800/50 transition-colors group cursor-pointer" onclick="toggleTelemetry('${ev.eventId}')">
           <td class="px-4 py-3 border-b border-slate-700/50 font-mono text-xs text-slate-500 flex items-center gap-2">
@@ -784,6 +885,7 @@ window.fetchApplicationLogs = async (appName, page) => {
           <td colspan="5" class="p-3 border-b border-slate-700/50">
             <div class="bg-black/60 p-3 rounded-lg border border-slate-700/50 font-mono text-[10px] shadow-inner">
               <pre class="text-sky-300 whitespace-pre-wrap">${normalizedJson}</pre>
+              ${createPolicyBtn}
             </div>
           </td>
         </tr>

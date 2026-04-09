@@ -24,7 +24,8 @@ def test_sdk():
         session_id='sess-2',
         intent='delete database',
         user_prompt='rm -rf /production/db',
-        action_type='malicious_tool'
+        action_type='malicious_tool',
+        principal_id='user123'
     )
     
     print("\nExecuting req2 (malicious_tool) against actual backend...")

@@ -288,10 +288,12 @@ export class PolicyEngine {
     }
 
     try {
+      const cleanNamespace = namespace.replace(/[^a-zA-Z0-9_]/g, '_');
+
       const mergedEntities = [
         ...nsState.entities,
-        { uid: { type: `${namespace}::Action`, id: actionType }, attrs: {}, parents: [] },
-        { uid: { type: `${namespace}::System`, id: "Backend" }, attrs: {}, parents: [] }
+        { uid: { type: `${cleanNamespace}::Action`, id: actionType }, attrs: {}, parents: [] },
+        { uid: { type: `${cleanNamespace}::System`, id: "Backend" }, attrs: {}, parents: [] }
       ];
 
       const uniqueEntitiesMap = new Map();
@@ -301,15 +303,16 @@ export class PolicyEngine {
       const uniqueEntities = Array.from(uniqueEntitiesMap.values());
 
       const authReq = {
-        principal: { type: `${namespace}::User`, id: principalId },
-        action: { type: `${namespace}::Action`, id: actionType },
-        resource: { type: `${namespace}::System`, id: "Backend" },
+        principal: { type: `${cleanNamespace}::User`, id: principalId },
+        action: { type: `${cleanNamespace}::Action`, id: actionType },
+        resource: { type: `${cleanNamespace}::System`, id: "Backend" },
         context: { isApproved: isApproved },
         policies: nsState.policies,
         entities: uniqueEntities
       };
 
       const result = cedar.isAuthorized(authReq);
+      console.log("Cedar auth result:", JSON.stringify(result, null, 2));
 
       if (result.type === "success" && result.response.decision === "allow") {
         return {
