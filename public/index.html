@@ -7,11 +7,29 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
   
+  <!-- MSAL Browser Script -->
+  <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script>
+
   <!-- Compiled Tailwind CSS -->
   <link href="/output.css" rel="stylesheet">
 </head>
 <body class="text-slate-200 h-screen overflow-hidden flex font-sans antialiased selection:bg-brand-500/30">
   
+  <!-- Login Screen -->
+  <div id="login-screen" class="flex flex-col items-center justify-center w-full h-full absolute inset-0 z-50 bg-slate-950">
+     <div class="glass-panel p-10 flex flex-col items-center mx-auto max-w-md w-full animate-[fadeIn_0.5s_ease-out_forwards]">
+        <span class="text-6xl mb-4">🛡️</span>
+        <h1 class="text-3xl font-bold text-white mb-2 font-display">AARM Platform</h1>
+        <p class="text-slate-400 mb-8 text-center text-sm">Enterprise Security Runtime Management</p>
+        <button id="btn-login-hero" class="btn-primary w-full text-base py-3 flex justify-center items-center gap-3">
+           Sign in with Entra ID
+        </button>
+     </div>
+  </div>
+
+  <!-- Authenticated Application -->
+  <div id="authenticated-app" class="hidden flex w-full h-full">
+
   <!-- Sidebar Navigation -->
   <aside class="w-72 flex-shrink-0 flex flex-col border-r border-slate-800 bg-slate-950/80 backdrop-blur-md z-10">
     <div class="p-6 flex items-center gap-3 border-b border-slate-800">
@@ -55,8 +73,21 @@
     <!-- Top Header -->
     <header class="flex justify-between items-center px-8 py-5 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md">
       <h2 id="page-title" class="text-xl font-semibold font-display text-white">Dashboard Overview</h2>
-      <div class="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-sm font-bold text-white shadow-[0_2px_10px_rgba(14,165,233,0.4)] ring-2 ring-slate-800 cursor-pointer hover:ring-brand-500 transition-all">
-        AD
+      <div class="relative">
+        <button id="btn-profile" class="flex items-center gap-3 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-sm font-medium text-white shadow-[0_2px_10px_rgba(0,0,0,0.2)] ring-1 ring-slate-700 cursor-pointer hover:ring-brand-500 transition-all focus:outline-none">
+          <div class="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center text-xs font-bold text-white shadow-inner overflow-hidden relative">
+             <span id="profile-initials">?</span>
+             <img id="profile-picture" src="" class="hidden absolute inset-0 w-full h-full object-cover z-10" alt="Profile Picture">
+          </div>
+          <span id="profile-name">Loading...</span>
+          <span class="text-[10px] opacity-70 ml-1">▼</span>
+        </button>
+        <!-- Dropdown Menu -->
+        <div id="profile-dropdown" class="hidden absolute top-full right-0 bg-[#0f172a] border border-slate-700 rounded-lg shadow-2xl py-1 mt-2 min-w-[160px] z-50">
+          <button id="btn-logout" class="w-full text-left px-4 py-2.5 text-sm text-rose-400 hover:bg-slate-800/80 hover:text-rose-300 transition-colors flex items-center gap-2">
+            <span>🚪</span> Sign Out
+          </button>
+        </div>
       </div>
     </header>
 
@@ -96,6 +127,7 @@
               <thead>
                 <tr class="bg-black/20 text-xs uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-700/50">
                   <th class="p-4">Timestamp</th>
+                  <th class="p-4">Application</th>
                   <th class="p-4">Event Focus</th>
                   <th class="p-4">Action</th>
                   <th class="p-4">Decision</th>
@@ -103,7 +135,7 @@
                 </tr>
               </thead>
               <tbody id="dash-telemetry-body" class="divide-y divide-slate-700/50 text-sm">
-                <tr><td colspan="5" class="p-6 text-center text-slate-500">No events recorded</td></tr>
+                <tr><td colspan="6" class="p-6 text-center text-slate-500">No events recorded</td></tr>
               </tbody>
             </table>
           </div>
@@ -185,14 +217,23 @@
       <!-- TELEMETRY VIEW -->
       <section id="view-telemetry" class="view">
         <div class="glass-panel w-full">
-          <div class="mb-2 flex justify-between items-end">
+          <div class="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-3 border-b border-slate-800 pb-4">
             <div>
               <h3 class="text-xl font-semibold text-white">Full Telemetry Stream</h3>
               <p class="text-sm text-slate-400 mt-1">Comprehensive real-time log of all platform mediation events.</p>
             </div>
-            <button onclick="fetchTelemetry()" class="btn-secondary flex items-center gap-2">
-              <span class="text-lg">↻</span> Refresh
-            </button>
+            <div class="flex items-center gap-4 bg-slate-900/50 p-1.5 rounded-lg border border-slate-800">
+              <div class="flex items-center gap-2 px-2">
+                <label class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">App</label>
+                <select id="telemetry-app-filter" class="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs py-1 px-2 outline-none cursor-pointer focus:border-brand-500 transition-colors w-[140px]">
+                  <option value="ALL" class="bg-slate-800 text-slate-300">All Applications</option>
+                </select>
+              </div>
+              <div class="w-px h-4 bg-slate-700 text-transparent"></div>
+              <button onclick="fetchTelemetry()" class="text-slate-400 hover:text-white px-2 py-1 text-xs rounded hover:bg-slate-800 transition-colors flex items-center gap-1">
+                <span class="text-sm leading-none">↻</span> Refresh
+              </button>
+            </div>
           </div>
           
           <div class="overflow-x-auto rounded-lg border border-slate-700/50 mt-2 bg-slate-900/20">
@@ -200,6 +241,7 @@
               <thead>
                 <tr class="bg-black/40 text-xs uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-700/50">
                   <th class="px-5 py-4">Timestamp</th>
+                  <th class="px-5 py-4">Application</th>
                   <th class="px-5 py-4">Event Focus</th>
                   <th class="px-5 py-4">Action</th>
                   <th class="px-5 py-4">Decision</th>
@@ -413,6 +455,37 @@
               </div>
             </div>
             
+            <!-- Application Logs -->
+            <div class="flex flex-col gap-4 mt-6 border-t border-slate-700/50 pt-4">
+              <div class="flex justify-between items-end mb-2">
+                <div>
+                  <h4 class="font-medium text-slate-300">Application Logs</h4>
+                  <p class="text-xs text-slate-500 mt-1">Recent telemetry events for this application.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="app-logs-page-indicator" class="text-xs text-slate-400 mr-2">Page 1</span>
+                  <button id="btn-app-logs-prev" class="btn-secondary text-[10px] py-1 px-2" disabled>&larr; Prev</button>
+                  <button id="btn-app-logs-next" class="btn-secondary text-[10px] py-1 px-2" disabled>Next &rarr;</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto rounded-lg border border-slate-700/50 bg-slate-900/20">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                  <thead>
+                    <tr class="bg-black/40 text-[10px] uppercase tracking-wider text-slate-400 font-semibold border-b border-slate-700/50">
+                      <th class="px-4 py-3">Timestamp</th>
+                      <th class="px-4 py-3">Event Focus</th>
+                      <th class="px-4 py-3">Action</th>
+                      <th class="px-4 py-3">Decision</th>
+                      <th class="px-4 py-3 w-full">Status / Details</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-app-logs-body" class="divide-y divide-slate-700/50 text-xs text-slate-300">
+                    <tr><td colspan="5" class="p-4 text-center text-slate-500">Loading logs...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div class="mt-4 flex justify-end">
                 <button id="btn-edit-app-policies" class="btn-primary flex items-center gap-2">
                     <span>✏️</span> Edit in Policy Editor
@@ -554,6 +627,8 @@
       </div>
     </div>
   </div>
+
+  </div> <!-- end authenticated-app -->
 
   <!-- Add application logic -->
   <script src="app.js"></script>

@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 authors = [
     { name = "AARM Dev", email = "dev@aarm.platform" }
 ]
-dependencies = ["httpx>=0.20.0"]
+dependencies = ["httpx>=0.28.0"]
 
 [project.urls]
 Homepage = "https://github.com/aarm-platform/aarm-sdk-python"

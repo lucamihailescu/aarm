@@ -1,3 +1,223 @@
+// --- MSAL Auth & Fetch Override ---
+let msalInstance = null;
+let activeAccount = null;
+
+async function initAuth() {
+  try {
+    const configRes = await originalFetch('/api/system/config');
+    const config = await configRes.json();
+    
+    const msalConfig = {
+      auth: {
+        clientId: config.clientId,
+        authority: `https://login.microsoftonline.com/${config.tenantId}`,
+        redirectUri: window.location.origin
+      },
+      cache: { cacheLocation: "sessionStorage" }
+    };
+    
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+
+    // Handle redirect response if coming back from Entra ID
+    const redirectResponse = await msalInstance.handleRedirectPromise();
+    if (redirectResponse) {
+      activeAccount = redirectResponse.account;
+      msalInstance.setActiveAccount(activeAccount);
+    } else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        activeAccount = accounts[0];
+        msalInstance.setActiveAccount(activeAccount);
+      }
+    }
+    updateProfileUI();
+  } catch (error) {
+    console.error("Failed to initialize MSAL:", error);
+  }
+}
+
+async function getToken() {
+  if (!msalInstance || !activeAccount) return null;
+  
+  const tokenRequest = {
+    // Relying on idToken to be validated on the backend
+    scopes: [`${msalInstance.config.auth.clientId}/.default`],
+    account: activeAccount
+  };
+  
+  try {
+    const response = await msalInstance.acquireTokenSilent(tokenRequest);
+    return response.accessToken || response.idToken;
+  } catch (e) {
+    if (e instanceof msal.InteractionRequiredAuthError) {
+       console.warn("Interaction required for MSAL");
+       // fallback could be logic to prompt login, but we'll let user click login
+    }
+    return null;
+  }
+}
+
+async function login() {
+  if (!msalInstance) return;
+  try {
+    await msalInstance.loginRedirect({ scopes: [`${msalInstance.config.auth.clientId}/.default`] });
+  } catch(error) {
+    console.error("Login failed:", error);
+  }
+}
+
+function logout() {
+  if (!msalInstance || !activeAccount) return;
+  try {
+    msalInstance.logoutRedirect({ account: activeAccount });
+  } catch(error) {
+    console.error("Logout failed:", error);
+  }
+}
+
+async function fetchProfilePicture() {
+    if (!msalInstance || !activeAccount) return;
+    try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+            scopes: ["User.Read"],
+            account: activeAccount
+        });
+        
+        const res = await window.fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
+            headers: { Authorization: `Bearer ${tokenResponse.accessToken}` }
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const img = document.getElementById('profile-picture');
+            const initials = document.getElementById('profile-initials');
+            if (img && initials) {
+                img.src = url;
+                img.classList.remove('hidden');
+                initials.classList.add('hidden');
+            }
+        }
+    } catch (e) {
+        console.log("Profile picture fetch skipped or failed.");
+    }
+}
+
+function updateProfileUI() {
+  const profileBtn = document.getElementById('btn-profile');
+  const initialsSpan = document.getElementById('profile-initials');
+  const nameSpan = document.getElementById('profile-name');
+  
+  const loginScreen = document.getElementById('login-screen');
+  const authApp = document.getElementById('authenticated-app');
+  
+  if (activeAccount) {
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (authApp) authApp.classList.remove('hidden');
+    
+    if (initialsSpan && nameSpan) {
+        const name = activeAccount.name || activeAccount.username || "User";
+        const parts = name.split(' ');
+        let initials = parts[0].substring(0,1);
+        if (parts.length > 1) {
+            initials += parts[parts.length-1].substring(0,1);
+        } else {
+            initials = name.substring(0,2);
+        }
+        
+        initialsSpan.innerText = initials.toUpperCase();
+        nameSpan.innerText = name;
+        
+        fetchProfilePicture();
+    }
+  } else {
+    if (loginScreen) loginScreen.classList.remove('hidden');
+    if (authApp) authApp.classList.add('hidden');
+    
+    if (initialsSpan && nameSpan) {
+        initialsSpan.innerText = "?";
+        nameSpan.innerText = "Guest";
+    }
+  }
+}
+
+// Intercept window.fetch
+const originalFetch = window.fetch;
+window.fetch = async function() {
+  const resource = arguments[0];
+  const config = arguments[1] || {};
+  
+  if (typeof resource === 'string' && resource.startsWith('/api/') && resource !== '/api/system/config') {
+    const token = await getToken();
+    
+    const headers = new Headers(config.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    
+    config.headers = headers;
+    
+    const response = await originalFetch(resource, config);
+    if (response.status === 401) {
+       console.warn("API returned 401 Unauthorized");
+       updateProfileUI();
+       throw new Error("Unauthorized access - UI gracefully failed request");
+    }
+    return response;
+  }
+  return originalFetch.apply(this, arguments);
+};
+
+// Profile click handler
+document.addEventListener('DOMContentLoaded', () => {
+    const profileBtn = document.getElementById('btn-profile');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    
+    if (profileBtn && profileDropdown) {
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.add('hidden');
+            }
+        });
+    }
+    
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', logout);
+    }
+    
+    const heroBtn = document.getElementById('btn-login-hero');
+    if (heroBtn) {
+        heroBtn.addEventListener('click', login);
+    }
+    
+    // Bind Telemetry Filter
+    const appFilter = document.getElementById('telemetry-app-filter');
+    if (appFilter) {
+        appFilter.addEventListener('change', fetchTelemetry);
+    }
+});
+
+// Init phase before other logic runs
+initAuth().then(() => {
+   handleRouting();
+   fetchSystemVersion(); // It will be properly handled
+   if (activeAccount) {
+       fetchNamespaces();
+       fetchPdeState();
+       fetchApprovals();
+       fetchTelemetry();
+       startPolling();
+   }
+});
+
 // --- DOM Elements ---
 
 // Navigation & Routing
@@ -80,6 +300,12 @@ const adminDetailAppEnv = document.getElementById('admin-detail-app-env');
 const adminDetailAppCreated = document.getElementById('admin-detail-app-created');
 const btnSaveAppMetadata = document.getElementById('btn-save-app-metadata');
 
+// Application Logs Fields
+const adminAppLogsBody = document.getElementById('admin-app-logs-body');
+const appLogsPageIndicator = document.getElementById('app-logs-page-indicator');
+const btnAppLogsPrev = document.getElementById('btn-app-logs-prev');
+const btnAppLogsNext = document.getElementById('btn-app-logs-next');
+
 // Modal Elements
 const confirmModal = document.getElementById('confirm-modal');
 const confirmTitle = document.getElementById('confirm-title');
@@ -91,6 +317,8 @@ const btnConfirmOk = document.getElementById('btn-confirm-ok');
 let currentAdminNamespace = null;
 let currentAdminApp = null;
 let currentNamespacesData = [];
+let appLogsCurrentPage = 1;
+const APP_LOGS_LIMIT = 20;
 
 // State counters
 let totalIntercepts = 0;
@@ -156,7 +384,7 @@ function handleRouting() {
 
 window.addEventListener('hashchange', handleRouting);
 // Run on initial load
-handleRouting();
+// handleRouting(); // deferred to initAuth().then()
 
 
 // --- 2. Simulator Logic ---
@@ -297,12 +525,30 @@ window.toggleTelemetry = (id) => {
 async function fetchTelemetry() {
   try {
     const res = await fetch('/api/telemetry');
-    const events = await res.json();
+    let events = await res.json();
     
     // Update global intercept counter if it's far behind
     if (events.length > totalIntercepts) {
        totalIntercepts = events.length;
        kpiIntercepts.innerText = totalIntercepts;
+    }
+    
+    // Handle Application filtering
+    const appFilterSelect = document.getElementById('telemetry-app-filter');
+    if (appFilterSelect) {
+       const apps = new Set(events.map(ev => ev.context?.application || ev.application).filter(Boolean));
+       const currentSelection = appFilterSelect.value;
+       
+       let optionsHtml = `<option value="ALL">All Applications</option>`;
+       Array.from(apps).sort().forEach(app => {
+           const selected = app === currentSelection ? 'selected' : '';
+           optionsHtml += `<option value="${app}" ${selected}>${app}</option>`;
+       });
+       appFilterSelect.innerHTML = optionsHtml;
+       
+       if (currentSelection !== 'ALL') {
+           events = events.filter(ev => (ev.context?.application || ev.application) === currentSelection);
+       }
     }
     
     const reversed = events.reverse();
@@ -353,11 +599,14 @@ async function fetchTelemetry() {
       const isExpanded = expandedTelemetryIds.has(ev.eventId);
       const rowHiddenState = isExpanded ? '' : 'hidden';
 
+      const appName = ev.context?.application || ev.application || "Unknown App";
+
       return `
         <tr class="hover:bg-slate-800/50 transition-colors group cursor-pointer" onclick="toggleTelemetry('${ev.eventId}')">
           <td class="px-5 py-3 border-b border-slate-700/50 font-mono text-xs text-slate-500 flex items-center gap-2">
             <span class="text-slate-600 text-[10px] transform transition-transform ${isExpanded ? 'rotate-90' : ''}">▶</span> ${time}
           </td>
+          <td class="px-5 py-3 border-b border-slate-700/50 text-slate-300 font-medium whitespace-nowrap">${appName}</td>
           <td class="px-5 py-3 border-b border-slate-700/50"><span class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-700">${ev.eventType}</span></td>
           <td class="px-5 py-3 border-b border-slate-700/50 font-medium text-slate-200">${typeStr}</td>
           <td class="px-5 py-3 border-b border-slate-700/50">
@@ -366,7 +615,7 @@ async function fetchTelemetry() {
           <td class="px-5 py-3 border-b border-slate-700/50 text-xs text-slate-400 truncate max-w-[200px]" title="${ev.executionStatus || ev.reason || '-'}">${ev.executionStatus || ev.reason || '-'}</td>
         </tr>
         <tr class="${rowHiddenState} bg-slate-950/80 details-row-${ev.eventId}">
-          <td colspan="5" class="p-4 border-b border-slate-700/50">
+          <td colspan="6" class="p-4 border-b border-slate-700/50">
             <div class="bg-black/60 p-4 rounded-lg border border-slate-700/50 font-mono text-xs shadow-inner">
               <div class="text-[10px] text-brand-400 mb-2 uppercase tracking-widest font-bold border-b border-slate-800 pb-2">AML Canonical Action Schema Match</div>
               <pre class="text-sky-300 whitespace-pre-wrap">${escapedJson}</pre>
@@ -467,12 +716,103 @@ window.openAppDetails = async (appName) => {
     if (adminAppPolicies) adminAppPolicies.innerText = polStr;
     if (adminAppEntities) adminAppEntities.innerText = JSON.stringify(entities, null, 2);
     
+    // Load logs
+    appLogsCurrentPage = 1;
+    fetchApplicationLogs(appName, appLogsCurrentPage);
+    
   } catch(e) {
     console.error("Failed to fetch app details", e);
     if (adminAppPolicies) adminAppPolicies.innerText = 'Error loading policies';
     if (adminAppEntities) adminAppEntities.innerText = 'Error loading context';
   }
 };
+
+window.fetchApplicationLogs = async (appName, page) => {
+  if (!adminAppLogsBody) return;
+  adminAppLogsBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Loading logs for ${appName}...</td></tr>`;
+  
+  try {
+    const res = await fetch(`/api/pde/applications/logs?applicationName=${encodeURIComponent(appName)}&page=${page}&limit=${APP_LOGS_LIMIT}`);
+    if (!res.ok) throw new Error("Failed to fetch logs");
+    
+    const data = await res.json();
+    const { events, totalCount } = data;
+    
+    if (events.length === 0) {
+      adminAppLogsBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">No logs found for this application.</td></tr>`;
+      btnAppLogsPrev.disabled = true;
+      btnAppLogsNext.disabled = true;
+      appLogsPageIndicator.innerText = "Page 1 of 1";
+      return;
+    }
+    
+    // Update pagination controls
+    const totalPages = Math.ceil(totalCount / APP_LOGS_LIMIT) || 1;
+    btnAppLogsPrev.disabled = page <= 1;
+    btnAppLogsNext.disabled = page >= totalPages;
+    appLogsPageIndicator.innerText = `Page ${page} of ${totalPages}`;
+    
+    // Render rows
+    adminAppLogsBody.innerHTML = events.map(ev => {
+      const time = new Date(ev.timestamp).toLocaleTimeString();
+      let badgeClass = 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+      if (ev.decision?.toLowerCase() === 'deny') {
+        badgeClass = 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+      } else if (ev.decision?.toLowerCase() === 'step_up') {
+        badgeClass = 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+      }
+      
+      const typeStr = ev.actionType || ev.eventType || 'unknown';
+      let parsedTool = typeStr;
+      if (typeStr.includes('::')) parsedTool = typeStr.split('::')[0];
+      
+      const normalizedJson = JSON.stringify(ev, null, 2).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      
+      return `
+        <tr class="hover:bg-slate-800/50 transition-colors group cursor-pointer" onclick="toggleTelemetry('${ev.eventId}')">
+          <td class="px-4 py-3 border-b border-slate-700/50 font-mono text-xs text-slate-500 flex items-center gap-2">
+            <span class="text-slate-600 text-[10px]">▶</span> ${time}
+          </td>
+          <td class="px-4 py-3 border-b border-slate-700/50"><span class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-700">${ev.eventType}</span></td>
+          <td class="px-4 py-3 border-b border-slate-700/50 font-medium text-slate-200">${typeStr}</td>
+          <td class="px-4 py-3 border-b border-slate-700/50">
+            ${ev.decision ? `<span class="uppercase text-[10px] font-bold px-2 py-0.5 rounded border ${badgeClass}">${ev.decision}</span>` : '-'}
+          </td>
+          <td class="px-4 py-3 border-b border-slate-700/50 text-xs text-slate-400 truncate max-w-[200px]" title="${ev.executionStatus || ev.reason || '-'}">${ev.executionStatus || ev.reason || '-'}</td>
+        </tr>
+        <tr class="hidden bg-slate-950/80 details-row-${ev.eventId}">
+          <td colspan="5" class="p-3 border-b border-slate-700/50">
+            <div class="bg-black/60 p-3 rounded-lg border border-slate-700/50 font-mono text-[10px] shadow-inner">
+              <pre class="text-sky-300 whitespace-pre-wrap">${normalizedJson}</pre>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    
+  } catch(e) {
+    console.error(e);
+    adminAppLogsBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-rose-500">Failed to load logs.</td></tr>`;
+  }
+};
+
+if (btnAppLogsPrev) {
+  btnAppLogsPrev.addEventListener('click', () => {
+    if (appLogsCurrentPage > 1 && currentAdminApp) {
+      appLogsCurrentPage--;
+      fetchApplicationLogs(currentAdminApp, appLogsCurrentPage);
+    }
+  });
+}
+
+if (btnAppLogsNext) {
+  btnAppLogsNext.addEventListener('click', () => {
+    if (currentAdminApp) {
+      appLogsCurrentPage++;
+      fetchApplicationLogs(currentAdminApp, appLogsCurrentPage);
+    }
+  });
+}
 
 async function fetchNamespaces() {
   try {
@@ -886,14 +1226,22 @@ btnSaveEntities.addEventListener('click', async () => {
 
 // --- Initialization & Polling ---
 
-setInterval(() => {
-  fetchApprovals();
-  fetchTelemetry();
-}, 2000);
+let pollingInterval = null;
+
+function startPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    if (activeAccount) {
+      fetchApprovals();
+      fetchTelemetry();
+    }
+  }, 2000);
+}
 
 async function fetchSystemVersion() {
   try {
     const res = await fetch('/api/system/version');
+    if (!res.ok) return;
     const data = await res.json();
     const versionEl = document.getElementById('sys-version');
     if (versionEl && data.version && data.version !== "unknown") {
@@ -901,15 +1249,6 @@ async function fetchSystemVersion() {
       versionEl.classList.remove('hidden');
     }
   } catch (e) {
-    console.error("Failed to fetch system version", e);
+    console.log("System version skipped or unavailable.");
   }
 }
-
-async function init() {
-    await fetchNamespaces();
-    await fetchPdeState();
-    fetchSystemVersion();
-    fetchApprovals();
-    fetchTelemetry();
-}
-init();

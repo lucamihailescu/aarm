@@ -6,7 +6,8 @@
     "prisma": "npm:prisma@^5.20.0",
     "redis": "npm:redis",
     "@std/http/file-server": "jsr:@std/http/file-server",
-    "tailwindcss": "npm:tailwindcss@^4.2.2"
+    "tailwindcss": "npm:tailwindcss@^4.2.2",
+    "jose": "npm:jose@^5.0.0"
   }
 }
 

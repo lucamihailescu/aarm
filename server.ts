@@ -3,6 +3,8 @@ import { aml } from './src/ActionMediationLayer.ts';
 import { approvalService } from './src/ApprovalService.ts';
 import { telemetryExporter } from './src/TelemetryExporter.ts';
 import { policyEngine } from './src/PolicyEngine.ts';
+import { validateToken } from './src/AuthMiddleware.ts';
+import { prisma } from './src/db/prisma.ts';
 
 const PORT = 3000;
 
@@ -27,6 +29,30 @@ const APP_VERSION = await getAppVersion();
 
 const handler = async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
+
+  // Expose Entra config to the frontend
+  if (req.method === 'GET' && url.pathname === '/api/system/config') {
+    return new Response(JSON.stringify({
+      clientId: Deno.env.get("ENTRA_CLIENT_ID") || "YOUR_CLIENT_ID_HERE",
+      tenantId: Deno.env.get("ENTRA_TENANT_ID") || "YOUR_TENANT_ID_HERE"
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Protect UI/Admin API Endpoints (agents use /api/mediate)
+  const isMediation = url.pathname === '/api/mediate';
+  const isSysVersion = url.pathname === '/api/system/version';
+  
+  if (url.pathname.startsWith('/api/') && !isMediation && !isSysVersion) {
+    const payload = await validateToken(req);
+    if (!payload && req.method !== 'OPTIONS') {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+        status: 401,
+        headers: { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" }
+      });
+    }
+  }
 
   // API Endpoints
   if (req.method === 'POST' && url.pathname === '/api/mediate') {
@@ -111,6 +137,60 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const details = await policyEngine.getApplicationDetails(namespace);
     return new Response(JSON.stringify(details || {}), { headers: { "Content-Type": "application/json" } });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/pde/applications/logs') {
+    const applicationName = url.searchParams.get("applicationName");
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const limit = parseInt(url.searchParams.get("limit") || "20", 10);
+    
+    if (!applicationName) {
+       return new Response(JSON.stringify({ error: "Missing applicationName parameter" }), { status: 400 });
+    }
+
+    try {
+      const skip = (page - 1) * limit;
+      // In PostgreSQL, we can use string contains on the JSON payload
+      // since details is stored as a stringified JSON
+      const searchString = `"application":"${applicationName}"`;
+
+      const [logs, totalCount] = await Promise.all([
+        prisma.telemetryEvent.findMany({
+          where: {
+            details: {
+              contains: searchString,
+            }
+          },
+          orderBy: { timestamp: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.telemetryEvent.count({
+          where: {
+            details: {
+              contains: searchString,
+            }
+          }
+        })
+      ]);
+
+      const events = logs.map(row => {
+        let det = {};
+        try { det = JSON.parse(row.details || "{}"); } catch(e) {}
+        return {
+          eventId: row.id,
+          timestamp: row.timestamp,
+          eventType: row.eventType,
+          ...det
+        };
+      });
+
+      return new Response(JSON.stringify({ events, totalCount, page, limit }), { 
+        headers: { "Content-Type": "application/json" } 
+      });
+    } catch(e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    }
   }
 
   if (req.method === 'POST' && url.pathname === '/api/pde/applications') {
